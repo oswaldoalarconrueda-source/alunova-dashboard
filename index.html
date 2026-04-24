@@ -152,6 +152,7 @@ tr:hover td{background:rgba(79,142,247,.03);}
   </div>
   <div class="header-right">
     <span id="hdr-status" class="status-badge status-warn">Sin datos</span>
+    <button id="btn-publicar" onclick="publicarDatos()" style="display:none;background:linear-gradient(135deg,#2ECC8D,#1aaa72);border:none;color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;padding:8px 16px;border-radius:8px;cursor:pointer;letter-spacing:.03em;">📤 Publicar datos</button>
     <span id="hdr-update" style="font-size:11px;color:var(--mu)"></span>
   </div>
 </div>
@@ -537,9 +538,10 @@ function procesarDatos() {
     r._mes_key = getMesKey(r._fecha);
   });
 
-  // Mostrar dashboard
+  // Mostrar dashboard y botón publicar
   document.getElementById('upload-zone').style.display = 'none';
   document.getElementById('tabs').style.display = 'flex';
+  document.getElementById('btn-publicar').style.display = 'inline-block';
   document.getElementById('hdr-status').className = 'status-badge status-ok';
   document.getElementById('hdr-status').textContent = '✓ Datos cargados';
   document.getElementById('hdr-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
@@ -1177,6 +1179,133 @@ function showTab(id, btn) {
   btn.classList.add('active');
 }
 
+// ── EXPORTAR DATOS JSON ────────────────────────────────────────
+function publicarDatos() {
+  if(!G.guias.length) { alert('No hay datos cargados para publicar.'); return; }
+
+  const btn = document.getElementById('btn-publicar');
+  btn.textContent = '⏳ Generando...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    // Construir payload con todos los datos procesados
+    const payload = {
+      meta: {
+        actualizado: new Date().toISOString(),
+        version: '2.0',
+        meses: getMeses(),
+      },
+      guias: G.guias.map(r => ({
+        guia: r._guia, ciudad: r._ciudad, trans: r._trans,
+        estado: (r['Estado global guía inicial'] || '').toString(),
+        fecha: r._fecha, mes_key: r._mes_key, recaudo: r._recaudo,
+        ent: r._ent, dev: r._dev, articulos: r._articulos || [],
+      })),
+      wallet: G.wallet.map(r => ({
+        tipo: r._tipo, valor: r._val, fecha: r._fecha, mes_key: r._mes_key,
+      })),
+      concepto: G.concepto.map(r => ({
+        guia: r._guia, id: r._id, art: r._art, estado: r._estado,
+        cant: r._cant, precio: r._precio, fecha: r._fecha, mes_key: r._mes_key,
+      })),
+      gastos: G.gastos.map(r => ({
+        fecha: (r['Fecha'] || '').toString(),
+        categoria: (r['Categoría'] || '').toString(),
+        descripcion: (r['Descripción'] || '').toString(),
+        valor: parseFloat(r['Valor']) || 0,
+      })),
+    };
+
+    // Leer el HTML actual y reemplazar el marcador de datos
+    const payloadStr = JSON.stringify(payload);
+    const htmlActual = document.documentElement.outerHTML;
+
+    // Inyectar datos directamente en el HTML — reemplazar el script de carga automática
+    const scriptInject = `<script id="datos-incrustados">
+// Datos incrustados automáticamente el ${new Date().toLocaleString('es-CO')}
+window._DATOS_INCRUSTADOS = ${payloadStr};
+<\/script>`;
+
+    // Insertar antes del cierre de </head>
+    const htmlFinal = htmlActual.replace('</head>', scriptInject + '</head>');
+
+    // Descargar como index.html
+    const blob = new Blob(['<!DOCTYPE html>\n' + htmlFinal], {type: 'text/html;charset=utf-8'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'index.html';
+    a.click();
+    URL.revokeObjectURL(url);
+
+    btn.textContent = '✅ Descargado';
+    setTimeout(() => {
+      btn.textContent = '📤 Publicar datos';
+      btn.disabled = false;
+    }, 3000);
+  }, 100);
+}
+
+// ── CARGA AUTOMÁTICA DE DATOS INCRUSTADOS (modo online GitHub Pages) ──
+window.addEventListener('DOMContentLoaded', () => {
+  // Si hay datos incrustados en el HTML, cargarlos automáticamente
+  if(window._DATOS_INCRUSTADOS) {
+    const payload = window._DATOS_INCRUSTADOS;
+    if(!payload?.guias?.length) return;
+    console.log(`📦 Datos incrustados: ${payload.guias.length} guías — ${payload.meta?.actualizado}`);
+
+    // Reconstruir G desde los datos incrustados
+    G.guias = payload.guias.map(r => ({
+      ...r,
+      _guia: r.guia, _ciudad: r.ciudad, _trans: r.trans,
+      _fecha: r.fecha, _mes_key: r.mes_key, _recaudo: r.recaudo,
+      _ent: r.ent, _dev: r.dev,
+      _articulos: r.articulos || [],
+      _nombres: (r.articulos||[]).map(a=>a.nombre).join(', '),
+      _ids: (r.articulos||[]).map(a=>a.id).join(', '),
+    }));
+        _ids:       (r.articulos||[]).map(a=>a.id).join(', '),
+        'Estado global guía inicial': r.estado,
+      }));
+      G.wallet   = payload.wallet.map(r => ({
+        ...r,
+        _tipo:    r.tipo,
+        _val:     r.valor,
+        _fecha:   r.fecha,
+        _mes_key: r.mes_key,
+      }));
+      G.concepto = payload.concepto.map(r => ({
+        ...r,
+        _guia: r.guia, _id: r.id, _art: r.art, _estado: r.estado,
+        _cant: r.cant, _precio: r.precio, _fecha: r.fecha, _mes_key: r.mes_key,
+      }));
+      G.gastos = payload.gastos || [];
+
+      // Construir mapa guía→artículos
+      G._guiaArtMap = {};
+      G.concepto.forEach(r => {
+        if(!r._guia) return;
+        if(!G._guiaArtMap[r._guia]) G._guiaArtMap[r._guia] = [];
+        G._guiaArtMap[r._guia].push({id:r._id, nombre:r._art, cant:r._cant});
+      });
+
+      // Mostrar dashboard sin botón publicar (ya están los datos)
+      document.getElementById('upload-zone').style.display = 'none';
+      document.getElementById('tabs').style.display = 'flex';
+      document.getElementById('btn-publicar').style.display = 'none';
+      document.getElementById('hdr-status').className = 'status-badge status-ok';
+      document.getElementById('hdr-status').textContent = '✓ En línea';
+      const upd = payload.meta?.actualizado
+        ? new Date(payload.meta.actualizado).toLocaleString('es-CO',{dateStyle:'short',timeStyle:'short'})
+        : '';
+      document.getElementById('hdr-update').textContent = 'Actualizado ' + upd;
+
+      initFechas();
+      buildFilters();
+      renderAll();
+  }
+});
+
 // ── DRAG & DROP ────────────────────────────────────────────────
 const uz = document.getElementById('upload-zone');
 uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('drag-over'); });
@@ -1199,6 +1328,93 @@ uz.addEventListener('drop', e => {
     inp.files = dt.files;
     handleFile(inp, tipo);
   });
+});
+
+// ── PUBLICAR DATOS ─────────────────────────────────────────────
+function publicarDatos() {
+  const btn = document.getElementById('btn-publicar');
+  btn.textContent = '⏳ Generando...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    try {
+      // Serializar todos los datos procesados
+      const datosExport = {
+        guias:     G.guias,
+        wallet:    G.wallet,
+        concepto:  G.concepto,
+        gastos:    G.gastos,
+        timestamp: new Date().toISOString()
+      };
+
+      const datosJSON = JSON.stringify(datosExport);
+
+      // Leer el HTML actual de la página
+      const htmlActual = document.documentElement.outerHTML;
+
+      // Inyectar los datos como script al inicio del head
+      const scriptInject = `<script id="datos-publicados">window._DATOS_PUBLICADOS=${datosJSON};<\/script>`;
+      const htmlConDatos = htmlActual.replace('<head>', '<head>\n' + scriptInject);
+
+      // Descargar como index.html
+      const blob = new Blob([htmlConDatos], {type: 'text/html;charset=utf-8'});
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'index.html';
+      a.click();
+      URL.revokeObjectURL(url);
+
+      btn.textContent = '✅ ¡Listo! Sube el index.html a GitHub';
+      setTimeout(() => { btn.textContent = '📤 Publicar datos'; btn.disabled = false; }, 4000);
+
+    } catch(e) {
+      btn.textContent = '❌ Error';
+      btn.disabled = false;
+    }
+  }, 100);
+}
+
+// Al cargar la página verificar si hay datos incrustados
+window.addEventListener('DOMContentLoaded', () => {
+  if(window._DATOS_PUBLICADOS) {
+    const d = window._DATOS_PUBLICADOS;
+
+    // Si la URL es local (file://) mostrar opción de actualizar en lugar de cargar datos
+    const esLocal = window.location.protocol === 'file:';
+
+    G.guias    = d.guias    || [];
+    G.wallet   = d.wallet   || [];
+    G.concepto = d.concepto || [];
+    G.gastos   = d.gastos   || [];
+    G.loaded.guias    = G.guias.length > 0;
+    G.loaded.wallet   = G.wallet.length > 0;
+    G.loaded.concepto = G.concepto.length > 0;
+    G.loaded.gastos   = true;
+
+    if(G.loaded.guias && G.loaded.wallet && G.loaded.concepto) {
+
+      // Si es local — mostrar zona de carga para que puedas actualizar
+      if(esLocal) {
+        // No hacer nada — dejar que cargue normalmente
+        G.guias=[]; G.wallet=[]; G.concepto=[]; G.gastos=[];
+        G.loaded={guias:false,wallet:false,concepto:false,gastos:false};
+        return;
+      }
+
+      // Si es en línea (GitHub Pages) — mostrar datos directamente
+      document.getElementById('upload-zone').style.display = 'none';
+      document.getElementById('tabs').style.display = 'flex';
+      document.getElementById('hdr-status').className = 'status-badge status-ok';
+      const fecha = new Date(d.timestamp);
+      document.getElementById('hdr-status').textContent = '✓ Datos cargados';
+      document.getElementById('hdr-update').textContent =
+        'Actualizado ' + fecha.toLocaleDateString('es-CO') + ' ' +
+        fecha.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+      document.getElementById('btn-publicar').style.display = 'none';
+      procesarDatos();
+    }
+  }
 });
 </script>
 </body>
