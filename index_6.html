@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alunova · Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg:    #0A0D14;
+  --panel: #111520;
+  --card:  #161C2E;
+  --border:#1E2740;
+  --text:  #E8EDF8;
+  --mu:    #5A6A9A;
+  --acc:   #4F8EF7;
+  --grn:   #2ECC8D;
+  --red:   #E55A5A;
+  --yel:   #F0B840;
+  --pur:   #9B6DFF;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+h1,h2,h3,.syne{font-family:'Syne',sans-serif;}
+
+/* ── HEADER ── */
+.header{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--border);background:rgba(10,13,20,.95);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-badge{width:38px;height:38px;background:linear-gradient(135deg,var(--acc),var(--pur));border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:#fff;}
+.logo-text{font-family:'Syne',sans-serif;font-weight:700;font-size:17px;color:var(--text);}
+.logo-sub{font-size:11px;color:var(--mu);font-weight:400;}
+.header-right{display:flex;align-items:center;gap:12px;}
+.status-badge{font-size:11px;padding:5px 12px;border-radius:20px;font-weight:600;letter-spacing:.03em;}
+.status-ok{background:rgba(46,204,141,.15);color:var(--grn);border:1px solid rgba(46,204,141,.3);}
+.status-warn{background:rgba(240,184,64,.15);color:var(--yel);border:1px solid rgba(240,184,64,.3);}
+
+/* ── UPLOAD ZONE ── */
+.upload-zone{margin:24px 28px;border:2px dashed var(--border);border-radius:16px;padding:32px;background:var(--card);transition:.3s;}
+.upload-zone.drag-over{border-color:var(--acc);background:rgba(79,142,247,.05);}
+.upload-title{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;margin-bottom:6px;}
+.upload-sub{color:var(--mu);font-size:13px;margin-bottom:24px;}
+.upload-files{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.upload-file{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:.2s;position:relative;overflow:hidden;}
+.upload-file:hover{border-color:var(--acc);background:rgba(79,142,247,.05);}
+.upload-file.loaded{border-color:var(--grn);background:rgba(46,204,141,.05);}
+.upload-file.loaded::after{content:'✓';position:absolute;top:10px;right:12px;color:var(--grn);font-weight:700;}
+.uf-icon{font-size:22px;margin-bottom:8px;}
+.uf-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.uf-desc{font-size:11px;color:var(--mu);}
+.uf-status{font-size:10px;margin-top:6px;font-weight:600;}
+input[type=file]{display:none;}
+.btn-process{margin-top:20px;background:linear-gradient(135deg,var(--acc),var(--pur));border:none;color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;padding:12px 28px;border-radius:10px;cursor:pointer;transition:.2s;letter-spacing:.03em;}
+.btn-process:hover{opacity:.9;transform:translateY(-1px);}
+.btn-process:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:0;padding:0 28px;border-bottom:1px solid var(--border);background:var(--panel);}
+.tab{padding:14px 20px;font-size:13px;font-weight:600;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:.2s;white-space:nowrap;letter-spacing:.02em;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--acc);border-bottom-color:var(--acc);}
+
+/* ── CONTENT ── */
+.content{padding:24px 28px;display:none;}
+.content.active{display:block;}
+
+/* ── KPI CARDS ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;}
+.kpi.blu::before{background:linear-gradient(90deg,var(--acc),transparent);}
+.kpi.grn::before{background:linear-gradient(90deg,var(--grn),transparent);}
+.kpi.red::before{background:linear-gradient(90deg,var(--red),transparent);}
+.kpi.yel::before{background:linear-gradient(90deg,var(--yel),transparent);}
+.kpi.pur::before{background:linear-gradient(90deg,var(--pur),transparent);}
+.kpi-icon{font-size:20px;margin-bottom:10px;}
+.kpi-label{font-size:10px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+.kpi-val{font-family:'Syne',sans-serif;font-weight:800;font-size:28px;line-height:1;}
+.kpi-val.grn{color:var(--grn);}
+.kpi-val.red{color:var(--red);}
+.kpi-val.yel{color:var(--yel);}
+.kpi-val.blu{color:var(--acc);}
+.kpi-val.pur{color:var(--pur);}
+.kpi-sub{font-size:11px;color:var(--mu);margin-top:6px;}
+
+/* ── CHARTS ── */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.chart-grid-3{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px;}
+.chart-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;}
+.chart-box.full{grid-column:1/-1;}
+.chart-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:4px;}
+.chart-sub{font-size:11px;color:var(--mu);margin-bottom:16px;}
+.chart-wrap{position:relative;}
+
+/* ── TABLE ── */
+.table-box{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.table-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.table-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;}
+.search-input{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;width:220px;}
+.search-input:focus{border-color:var(--acc);}
+table{width:100%;border-collapse:collapse;}
+th{padding:10px 16px;font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;text-align:left;border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;}
+th:hover{color:var(--text);}
+td{padding:10px 16px;font-size:12px;border-bottom:1px solid rgba(30,39,64,.5);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(79,142,247,.03);}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.04em;}
+.badge-grn{background:rgba(46,204,141,.15);color:var(--grn);}
+.badge-red{background:rgba(229,90,90,.15);color:var(--red);}
+.badge-yel{background:rgba(240,184,64,.15);color:var(--yel);}
+.badge-blu{background:rgba(79,142,247,.15);color:var(--acc);}
+
+/* ── MES FILTER ── */
+.filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.filter-label{font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;}
+.filter-btn{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--mu);font-size:12px;font-weight:600;cursor:pointer;transition:.2s;}
+.filter-btn:hover,.filter-btn.active{background:var(--acc);border-color:var(--acc);color:#fff;}
+.filter-sep{width:1px;height:20px;background:var(--border);}
+
+/* ── PROGRESS BAR ── */
+.pbar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px;}
+.pbar-fill{height:100%;border-radius:3px;transition:.5s;}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:60px 20px;color:var(--mu);}
+.empty-icon{font-size:48px;margin-bottom:12px;opacity:.4;}
+.empty-text{font-size:14px;}
+
+/* ── INSIGHT ── */
+.insight{background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.15);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:13px;line-height:1.6;}
+.insight strong{color:var(--acc);}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .chart-grid,.chart-grid-3{grid-template-columns:1fr;}
+  .upload-files{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-badge">AL</div>
+    <div>
+      <div class="logo-text">Alunova</div>
+      <div class="logo-sub">Dashboard de Guías</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span id="hdr-status" class="status-badge status-warn">Sin datos</span>
+    <button id="btn-publicar" onclick="publicarDatos()" style="display:none;background:linear-gradient(135deg,#2ECC8D,#1aaa72);border:none;color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;padding:8px 16px;border-radius:8px;cursor:pointer;letter-spacing:.03em;">📤 Publicar datos</button>
+    <span id="hdr-update" style="font-size:11px;color:var(--mu)"></span>
+  </div>
+</div>
+
+<!-- UPLOAD ZONE -->
+<div class="upload-zone" id="upload-zone">
+  <div class="upload-title">📂 Cargar archivos de datos</div>
+  <div class="upload-sub">Selecciona los archivos xlsx de tu carpeta Alunova Reportes para actualizar el dashboard</div>
+  <div class="upload-files">
+    <div class="upload-file" id="uf-guias" onclick="document.getElementById('inp-guias').click()">
+      <input type="file" id="inp-guias" accept=".xlsx" multiple onchange="handleFile(this,'guias')">
+      <div class="uf-icon">🚚</div>
+      <div class="uf-name">GUIAS [MES] ALUNOVA</div>
+      <div class="uf-desc">Puedes cargar varios meses</div>
+      <div class="uf-status" id="st-guias" style="color:var(--mu)">Sin cargar</div>
+    </div>
+    <div class="upload-file" id="uf-wallet" onclick="document.getElementById('inp-wallet').click()">
+      <input type="file" id="inp-wallet" accept=".xlsx" onchange="handleFile(this,'wallet')">
+      <div class="uf-icon">💰</div>
+      <div class="uf-name">MOVIMIENTOS WALLET</div>
+      <div class="uf-desc">Reporte de movimientos</div>
+      <div class="uf-status" id="st-wallet" style="color:var(--mu)">Sin cargar</div>
+    </div>
+    <div class="upload-file" id="uf-concepto" onclick="document.getElementById('inp-concepto').click()">
+      <input type="file" id="inp-concepto" accept=".xlsx" multiple onchange="handleFile(this,'concepto')">
+      <div class="uf-icon">📦</div>
+      <div class="uf-name">REPORTE CONCEPTO</div>
+      <div class="uf-desc">Ventas por producto</div>
+      <div class="uf-status" id="st-concepto" style="color:var(--mu)">Sin cargar</div>
+    </div>
+    <div class="upload-file" id="uf-gastos" onclick="document.getElementById('inp-gastos').click()">
+      <input type="file" id="inp-gastos" accept=".xlsx" onchange="handleFile(this,'gastos')">
+      <div class="uf-icon">📊</div>
+      <div class="uf-name">GASTOS</div>
+      <div class="uf-desc">Hoja de gastos (opcional)</div>
+      <div class="uf-status" id="st-gastos" style="color:var(--mu)">Sin cargar</div>
+    </div>
+  </div>
+  <button class="btn-process" id="btn-process" onclick="procesarDatos()" disabled>⚡ Procesar datos</button>
+</div>
+
+<!-- TABS -->
+<div class="tabs" id="tabs" style="display:none">
+  <div class="tab active" onclick="showTab('resumen',this)">📊 Resumen</div>
+  <div class="tab" onclick="showTab('ciudades',this)">🏙️ Ciudades</div>
+  <div class="tab" onclick="showTab('transportadoras',this)">🚚 Transportadoras</div>
+  <div class="tab" onclick="showTab('pyg',this)">💰 PYG Wallet</div>
+  <div class="tab" onclick="showTab('productos',this)">📦 Productos</div>
+  <div class="tab" onclick="showTab('detalle',this)">🔍 Detalle</div>
+</div>
+
+<!-- RESUMEN -->
+<div class="content active" id="tab-resumen">
+  <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:20px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;">
+    <div><div class="filter-label" style="margin-bottom:6px">📅 Desde</div><input type="date" id="fi-resumen" onchange="renderResumen()" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;"></div>
+    <div><div class="filter-label" style="margin-bottom:6px">📅 Hasta</div><input type="date" id="ff-resumen" onchange="renderResumen()" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;"></div>
+    <button onclick="limpiarFiltro('resumen')" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--mu);font-size:12px;cursor:pointer;">✕ Limpiar</button>
+  </div>
+  <div class="kpi-grid" id="kpi-resumen"></div>
+  <div class="chart-grid" id="charts-resumen">
+    <div class="chart-box"><div class="chart-title">Evolución mensual</div><div class="chart-sub">Guías entregadas vs devueltas por mes</div><div class="chart-wrap" style="height:220px"><canvas id="ch-evolucion"></canvas></div></div>
+    <div class="chart-box"><div class="chart-title">Distribución de estados</div><div class="chart-sub">Proporción global</div><div class="chart-wrap" style="height:220px"><canvas id="ch-estados"></canvas></div></div>
+  </div>
+  <div id="insight-resumen" class="insight" style="display:none"></div>
+</div>
+
+<!-- CIUDADES -->
+<div class="content" id="tab-ciudades">
+  <!-- Filtros: Rango de fechas -->
+  <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;">
+    <div>
+      <div class="filter-label" style="margin-bottom:6px">📅 Desde</div>
+      <input type="date" id="fi-ciudad" onchange="renderCiudades()" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;">
+    </div>
+    <div>
+      <div class="filter-label" style="margin-bottom:6px">📅 Hasta</div>
+      <input type="date" id="ff-ciudad" onchange="renderCiudades()" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;">
+    </div>
+    <button onclick="limpiarFiltrosCiudad()" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--mu);font-size:12px;cursor:pointer;">✕ Limpiar</button>
+  </div>
+  <!-- KPIs -->
+  <div class="kpi-grid" id="kpi-ciudades"></div>
+  <!-- Tabla ciudades ordenable -->
+  <div class="table-box" style="margin-bottom:20px">
+    <div class="table-header">
+      <span class="table-title">Detalle por ciudad</span>
+      <input class="search-input" placeholder="🔍 Buscar ciudad..." oninput="filtrarCiudades(this.value)">
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortCiudad('ciudad')">Ciudad ↕</th>
+            <th onclick="sortCiudad('total')" style="text-align:right">Total despachos ↕</th>
+            <th onclick="sortCiudad('ent')" style="text-align:right">Entregas ↕</th>
+            <th onclick="sortCiudad('dev')" style="text-align:right">Devoluciones ↕</th>
+            <th onclick="sortCiudad('proc')" style="text-align:right">En proceso ↕</th>
+            <th onclick="sortCiudad('pct')" style="text-align:right">% Entrega ↕</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-ciudades"></tbody>
+        <tfoot id="tfoot-ciudades"></tfoot>
+      </table>
+    </div>
+  </div>
+  <!-- Tabla productos cruzados con guías -->
+  <div class="table-box" style="margin-bottom:20px">
+    <div class="table-header">
+      <span class="table-title">Productos despachados en el período</span>
+      <input class="search-input" placeholder="🔍 Buscar producto..." oninput="filtrarProdCiudad(this.value)">
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortProdCiudad('id')">ID Producto ↕</th>
+            <th onclick="sortProdCiudad('nombre')">Nombre ↕</th>
+            <th onclick="sortProdCiudad('cantidad')" style="text-align:right">Cantidad ↕</th>
+            <th onclick="sortProdCiudad('guias')" style="text-align:right">Guías ↕</th>
+            <th onclick="sortProdCiudad('ent')" style="text-align:right">Entregadas ↕</th>
+            <th onclick="sortProdCiudad('dev')" style="text-align:right">Devueltas ↕</th>
+            <th onclick="sortProdCiudad('proc')" style="text-align:right">En proceso ↕</th>
+            <th onclick="sortProdCiudad('pct')" style="text-align:right">% Entrega ↕</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-prod-ciudad"></tbody>
+        <tfoot id="tfoot-prod-ciudad"></tfoot>
+      </table>
+    </div>
+  </div>
+  <!-- Gráficas -->
+  <div class="chart-grid">
+    <div class="chart-box"><div class="chart-title">Top ciudades — Entregas vs Devoluciones</div><div class="chart-sub">Número de guías por estado</div><div class="chart-wrap" style="height:300px"><canvas id="ch-ciudades-ent"></canvas></div></div>
+    <div class="chart-box"><div class="chart-title">% Devolución por ciudad</div><div class="chart-sub">Ciudades con más de 1 guía</div><div class="chart-wrap" style="height:300px"><canvas id="ch-ciudades-dev"></canvas></div></div>
+  </div>
+</div>
+
+<!-- TRANSPORTADORAS -->
+<div class="content" id="tab-transportadoras">
+  <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:20px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;">
+    <div><div class="filter-label" style="margin-bottom:6px">📅 Desde</div><input type="date" id="fi-trans" onchange="renderTransportadoras()" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;"></div>
+    <div><div class="filter-label" style="margin-bottom:6px">📅 Hasta</div><input type="date" id="ff-trans" onchange="renderTransportadoras()" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;"></div>
+    <button onclick="limpiarFiltro('trans')" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--mu);font-size:12px;cursor:pointer;">✕ Limpiar</button>
+  </div>
+  <div class="kpi-grid" id="kpi-trans"></div>
+  <div class="chart-grid">
+    <div class="chart-box"><div class="chart-title">Guías por transportadora</div><div class="chart-sub">Entregadas vs devueltas</div><div class="chart-wrap" style="height:260px"><canvas id="ch-trans-bar"></canvas></div></div>
+    <div class="chart-box"><div class="chart-title">Tasa de entrega</div><div class="chart-sub">% efectividad</div><div class="chart-wrap" style="height:260px"><canvas id="ch-trans-tasa"></canvas></div></div>
+  </div>
+</div>
+
+<!-- PYG WALLET -->
+<div class="content" id="tab-pyg">
+  <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:20px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;">
+    <div><div class="filter-label" style="margin-bottom:6px">📅 Fecha origen — Desde</div><input type="date" id="fi-pyg" onchange="renderPYG()" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;"></div>
+    <div><div class="filter-label" style="margin-bottom:6px">📅 Hasta</div><input type="date" id="ff-pyg" onchange="renderPYG()" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;"></div>
+    <button onclick="limpiarFiltro('pyg')" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--mu);font-size:12px;cursor:pointer;">✕ Limpiar</button>
+  </div>
+  <!-- Tipos de movimiento para excluir -->
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:12px;">⬛ Excluir tipos de movimiento</div>
+    <div id="pyg-tipos-check" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+  </div>
+  <!-- KPIs -->
+  <div class="kpi-grid" id="kpi-pyg"></div>
+  <!-- Tablas ingresos y egresos -->
+  <div class="chart-grid" style="margin-bottom:20px">
+    <div class="table-box">
+      <div class="table-header"><span class="table-title" style="color:var(--grn)">📈 Ingresos por tipo</span></div>
+      <table><thead><tr><th>Tipo de movimiento</th><th style="text-align:right">Total</th><th style="text-align:right">Transacciones</th></tr></thead>
+      <tbody id="tbody-pyg-ing"></tbody>
+      <tfoot id="tfoot-pyg-ing"></tfoot></table>
+    </div>
+    <div class="table-box">
+      <div class="table-header"><span class="table-title" style="color:var(--red)">📉 Egresos por tipo</span></div>
+      <table><thead><tr><th>Tipo de movimiento</th><th style="text-align:right">Total</th><th style="text-align:right">Transacciones</th></tr></thead>
+      <tbody id="tbody-pyg-egr"></tbody>
+      <tfoot id="tfoot-pyg-egr"></tfoot></table>
+    </div>
+  </div>
+  <!-- Gráficas eliminadas - solo tablas -->
+  <div class="chart-box full" style="margin-bottom:20px"><div class="chart-title">Flujo diario — Recaudo por fecha origen</div><div class="chart-sub">Recaudo de venta agrupado por fecha de origen</div><div class="chart-wrap" style="height:200px"><canvas id="ch-pyg-flujo"></canvas></div></div>
+</div>
+
+<!-- PRODUCTOS -->
+<div class="content" id="tab-productos">
+  <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:20px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;">
+    <div><div class="filter-label" style="margin-bottom:6px">📅 Desde</div><input type="date" id="fi-prod" onchange="renderProductos()" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;"></div>
+    <div><div class="filter-label" style="margin-bottom:6px">📅 Hasta</div><input type="date" id="ff-prod" onchange="renderProductos()" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;"></div>
+    <button onclick="limpiarFiltro('prod')" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--mu);font-size:12px;cursor:pointer;">✕ Limpiar</button>
+  </div>
+  <div class="kpi-grid" id="kpi-prod"></div>
+  <div class="table-box">
+    <div class="table-header"><span class="table-title">Detalle por producto</span><input class="search-input" placeholder="🔍 Buscar producto..." oninput="filtrarProd(this.value)"></div>
+    <div style="overflow-x:auto"><table id="tbl-prod">
+      <thead><tr>
+        <th onclick="sortProd('id')">Cod. Art. ↕</th>
+        <th onclick="sortProd('articulo')">Producto ↕</th>
+        <th onclick="sortProd('cantidad')" style="text-align:right">Unidades ↕</th>
+        <th onclick="sortProd('guias')" style="text-align:right">Guías ↕</th>
+        <th onclick="sortProd('entregadas')" style="text-align:right">Entregadas ↕</th>
+        <th onclick="sortProd('devueltas')" style="text-align:right">Devueltas ↕</th>
+        <th onclick="sortProd('pctEntrega')" style="text-align:right">% Entrega ↕</th>
+      </tr></thead>
+      <tbody id="tbody-prod"></tbody>
+      <tfoot id="tfoot-prod"></tfoot>
+    </table></div>
+  </div>
+</div>
+
+<!-- DETALLE -->
+<div class="content" id="tab-detalle">
+  <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:20px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;">
+    <div><div class="filter-label" style="margin-bottom:6px">📅 Desde</div><input type="date" id="fi-det" onchange="renderDetalle()" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;"></div>
+    <div><div class="filter-label" style="margin-bottom:6px">📅 Hasta</div><input type="date" id="ff-det" onchange="renderDetalle()" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;"></div>
+    <button onclick="limpiarFiltro('det')" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--mu);font-size:12px;cursor:pointer;">✕ Limpiar</button>
+  </div>
+  <div class="table-box">
+    <div class="table-header">
+      <span class="table-title">Detalle de guías</span>
+      <input class="search-input" placeholder="🔍 Buscar guía, ciudad, producto..." oninput="filtrarDet(this.value)">
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th>Guía</th>
+          <th>Ciudad</th>
+          <th>Transportadora</th>
+          <th>ID Art.</th>
+          <th>Artículo(s)</th>
+          <th>Estado</th>
+          <th>Fecha</th>
+          <th style="text-align:right">Recaudo</th>
+        </tr></thead>
+        <tbody id="tbody-det"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONSTANTES ─────────────────────────────────────────────────
+const BL='#4F8EF7', GR='#2ECC8D', RE='#E55A5A', YL='#F0B840', PU='#9B6DFF', MU='#5A6A9A';
+const GD = {color:'rgba(255,255,255,.04)'};
+const fmtCOP = v => '$' + Math.round(v).toLocaleString('es-CO');
+const fmtN   = v => Math.round(v).toLocaleString('es-CO');
+const charts = {};
+
+// ── ESTADO GLOBAL ──────────────────────────────────────────────
+const G = {
+  guias: [], wallet: [], concepto: [], gastos: [],
+  loaded: {guias:false, wallet:false, concepto:false, gastos:false},
+  filtroMes: 'todos',
+};
+
+// ── HELPERS FECHA ─────────────────────────────────────────────
+function parseExcelDate(val) {
+  if(!val && val !== 0) return '';
+  if(typeof val === 'number') {
+    const d = new Date((val - 25569) * 86400 * 1000);
+    return d.toISOString().split('T')[0];
+  }
+  const s = String(val).trim();
+  if(!s || s === 'nan' || s === 'NaT') return '';
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if(m) return m[1];
+  const m2 = s.match(/^(\d+)\/(\d+)\/(\d+)/);
+  if(m2) return `${m2[3]}-${m2[1].padStart(2,'0')}-${m2[2].padStart(2,'0')}`;
+  return '';
+}
+
+function getMesKey(fecha) {
+  if(!fecha || fecha.length < 7) return '';
+  return fecha.substring(0, 7); // "2026-02"
+}
+
+// ── HELPERS ────────────────────────────────────────────────────
+function mc(id, cfg) {
+  if(charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id);
+  if(!ctx) return;
+  charts[id] = new Chart(ctx, cfg);
+}
+
+// ── MANEJO DE ARCHIVOS ─────────────────────────────────────────
+function handleFile(input, tipo) {
+  const files = Array.from(input.files);
+  if(!files.length) return;
+
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+
+      if(tipo === 'guias') {
+        G.guias = G.guias.filter(r => r._file !== file.name);
+        rows.forEach(r => r._file = file.name);
+        G.guias = G.guias.concat(rows);
+      } else if(tipo === 'wallet') {
+        G.wallet = rows;
+      } else if(tipo === 'concepto') {
+        G.concepto = G.concepto.filter(r => r._file !== file.name);
+        rows.forEach(r => r._file = file.name);
+        G.concepto = G.concepto.concat(rows);
+      } else if(tipo === 'gastos') {
+        G.gastos = rows;
+      }
+
+      G.loaded[tipo] = true;
+      updateUploadUI(tipo, files.length > 1 ? `${files.length} archivos` : file.name);
+      checkReady();
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function checkReady() {
+  const ready = G.loaded.guias && G.loaded.wallet && G.loaded.concepto;
+  const btn = document.getElementById('btn-process');
+  if(btn) btn.disabled = !ready;
+}
+
+function updateUploadUI(tipo, nombre) {
+  const uf = document.getElementById('uf-' + tipo);
+  const st = document.getElementById('st-' + tipo);
+  if(uf) uf.classList.add('loaded');
+  if(st) { st.style.color = GR; st.textContent = '✓ ' + nombre; }
+  checkReady();
+}
+
+// ── PROCESAR DATOS ─────────────────────────────────────────────
+function procesarDatos() {
+  // Normalizar guías
+  G.guias.forEach(r => {
+    r._ciudad  = (r['Ciudad destinatario'] || '').toString().trim();
+    r._trans   = (r['Nombre transportadora Efficommerce'] || '').toString().trim();
+    r._estado  = (r['Estado global guía inicial'] || '').toString().trim().toLowerCase();
+    r._guia    = (r['Guía transportadora'] || '').toString().trim();
+    r._recaudo = parseFloat(r['Valor recaudo']) || 0;
+    r._fecha   = parseExcelDate(r['Fecha de creación']);
+    r._mes_key = getMesKey(r._fecha);
+    r._ent     = r._estado.includes('entregad');
+    r._dev     = r._estado.includes('devolu');
+  });
+
+  // Normalizar concepto
+  G.concepto.forEach(r => {
+    r._guia   = (r['Guía externa de transportadora'] || '').toString().trim();
+    r._id     = (r['Cod. artículo'] || r['Cod artículo'] || '').toString().trim();
+    r._art    = (r['Descripción artículo'] || '').toString().trim();
+    r._estado = (r['Estado global guía'] || '').toString().trim().toLowerCase();
+    r._cant   = parseFloat(r['Cantidad']) || 1;
+    r._precio = parseFloat(r['Precio neto total']) || 0;
+    r._fecha  = parseExcelDate(r['Fecha creación']);
+    r._mes_key = getMesKey(r._fecha);
+  });
+
+  // ── CRUCE GUÍAS ↔ CONCEPTO por número de guía ──────────────
+  // Construir mapa: guía → lista de artículos {id, nombre, cantidad}
+  G._guiaArtMap = {}; // guía → [{id, nombre, cant}]
+  G.concepto.forEach(r => {
+    if(!r._guia) return;
+    if(!G._guiaArtMap[r._guia]) G._guiaArtMap[r._guia] = [];
+    G._guiaArtMap[r._guia].push({id: r._id, nombre: r._art, cant: r._cant, precio: r._precio});
+  });
+
+  // Enriquecer cada guía con sus artículos del concepto
+  G.guias.forEach(r => {
+    r._articulos = G._guiaArtMap[r._guia] || [];
+    r._nombres   = r._articulos.map(a=>a.nombre).join(', ');
+    r._ids       = r._articulos.map(a=>a.id).join(', ');
+  });
+
+  // Normalizar wallet — usar FECHA ORIGEN (col índice 2)
+  G.wallet.forEach(r => {
+    r._tipo  = fixTipo((r['Tipo de movimiento'] || '').toString());
+    r._val   = parseFloat(r['Valor movimiento']) || 0;
+    // Fecha origen es la columna correcta para PYG
+    const colFechaOrigen = r['Fecha origen'] || r[Object.keys(r)[2]] || '';
+    r._fecha   = parseExcelDate(colFechaOrigen);
+    r._mes_key = getMesKey(r._fecha);
+  });
+
+  // Mostrar dashboard y botón publicar
+  document.getElementById('upload-zone').style.display = 'none';
+  document.getElementById('tabs').style.display = 'flex';
+  document.getElementById('btn-publicar').style.display = 'inline-block';
+  document.getElementById('hdr-status').className = 'status-badge status-ok';
+  document.getElementById('hdr-status').textContent = '✓ Datos cargados';
+  document.getElementById('hdr-update').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+
+  initFechas();
+  buildFilters();
+  renderAll();
+}
+
+// Limpieza robusta de tipos de movimiento corruptos del xlsx
+function fixTipo(t) {
+  if(!t) return '';
+  t = t.toString().trim();
+
+  // Extraer solo ASCII para identificar el tipo
+  const ascii = t.replace(/[^\x20-\x7E]/g, '?').replace(/\?+/g, '?').replace(/[^a-zA-Z0-9\s?]/g,'').trim();
+
+  // Mapa por patrón ASCII → nombre correcto
+  if(/^Recaudo de venta/.test(ascii))                     return 'Recaudo de venta';
+  if(/^Otros costos 4XMIL/.test(ascii))                  return 'Otros costos 4XMIL sobre recaudo';
+  if(/^Cruce de factura Grupo EFFI/.test(ascii))         return 'Cruce de factura Grupo EFFI';
+  if(/^Cruce de factura Effisystems/.test(ascii))        return 'Cruce de factura Effisystems';
+  if(/^Retiro de dinero/.test(ascii))                    return 'Retiro de dinero de cuenta';
+  if(/^Flete cr\?to con recaudo/.test(ascii))            return 'Flete crédito con recaudo';
+  if(/^Flete cr\?to devoluci/.test(ascii))               return 'Flete crédito devolución';
+  if(/^Flete cr\?to sin recaudo/.test(ascii))            return 'Flete crédito sin recaudo';
+  if(/^Comisi\?ocal por retiro/.test(ascii))             return 'Comisión local por retiro de Wallet';
+  if(/^D\?to revertido/.test(ascii))                     return 'Débito revertido';
+  if(/^Otros cr\?tos/.test(ascii))                       return 'Otros créditos';
+  if(/^Otros d\?tos/.test(ascii))                        return 'Otros débitos';
+  if(/^Indemnizaci/.test(ascii))                         return 'Indemnización mercancía';
+
+  // Fallback: retornar ASCII limpio
+  return ascii.replace(/\?/g,'').trim() || t.substring(0,30);
+}
+
+// ── FILTROS ────────────────────────────────────────────────────
+function getMeses() {
+  const m = new Set(G.guias.map(r=>r._mes_key).filter(Boolean));
+  return Array.from(m).sort();
+}
+
+function buildFilters() {
+  // Los filtros de fechas ya están directamente en el HTML de cada pestaña
+  // No necesita generar nada dinámicamente
+}
+
+function limpiarFiltro(prefijo) {
+  const fi = document.getElementById('fi-'+prefijo);
+  const ff = document.getElementById('ff-'+prefijo);
+  if(fi) fi.value = '';
+  if(ff) ff.value = '';
+  renderAll();
+}
+
+// ── RENDER ALL ─────────────────────────────────────────────────
+function renderAll() {
+  renderResumen();
+  renderCiudades();
+  renderTransportadoras();
+  renderPYG();
+  renderProductos();
+  renderDetalle();
+}
+
+// ── RESUMEN ────────────────────────────────────────────────────
+function renderResumen() {
+  const {fi, ff} = getFiltroFechas('resumen');
+  const g = fi || ff
+    ? G.guias.filter(r => enRango(r._fecha, fi, ff))
+    : G.guias;
+  const w = fi || ff
+    ? G.wallet.filter(r => enRango(r._fecha, fi, ff))
+    : G.wallet;
+
+  const total   = g.length;
+  const ent     = g.filter(r=>r._ent).length;
+  const dev     = g.filter(r=>r._dev).length;
+  const trans   = total - ent - dev;
+  const recaudo = w.filter(r=>r._tipo.includes('Recaudo')).reduce((s,r)=>s+r._val,0);
+
+  document.getElementById('kpi-resumen').innerHTML = `
+    <div class="kpi blu"><div class="kpi-icon">📦</div><div class="kpi-label">Total guías</div><div class="kpi-val blu">${fmtN(total)}</div><div class="kpi-sub">${getMeses().length} meses cargados</div></div>
+    <div class="kpi grn"><div class="kpi-icon">✅</div><div class="kpi-label">Entregadas</div><div class="kpi-val grn">${fmtN(ent)}</div><div class="kpi-sub">${total>0?(ent/total*100).toFixed(1):0}% tasa de entrega</div></div>
+    <div class="kpi red"><div class="kpi-icon">↩️</div><div class="kpi-label">Devueltas</div><div class="kpi-val red">${fmtN(dev)}</div><div class="kpi-sub">${total>0?(dev/total*100).toFixed(1):0}% tasa devolución</div></div>
+    <div class="kpi yel"><div class="kpi-icon">💵</div><div class="kpi-label">Recaudo total</div><div class="kpi-val yel">${fmtCOP(recaudo)}</div><div class="kpi-sub">Fecha origen wallet</div></div>
+  `;
+
+  // Evolución mensual — agrupar por mes dentro del filtro
+  const mesesEnRango = [...new Set(g.map(r=>r._mes_key).filter(Boolean))].sort();
+  const mesLabels = mesesEnRango.map(m => new Date(m+'-15').toLocaleString('es-CO',{month:'short',year:'2-digit'}).toUpperCase());
+  const entPorMes = mesesEnRango.map(m => g.filter(r=>r._mes_key===m&&r._ent).length);
+  const devPorMes = mesesEnRango.map(m => g.filter(r=>r._mes_key===m&&r._dev).length);
+  const totPorMes = mesesEnRango.map(m => g.filter(r=>r._mes_key===m).length);
+
+  mc('ch-evolucion',{type:'bar',data:{labels:mesLabels,datasets:[
+    {label:'Entregadas', data:entPorMes, backgroundColor:'rgba(46,204,141,.8)',borderRadius:6},
+    {label:'Devueltas',  data:devPorMes, backgroundColor:'rgba(229,90,90,.8)', borderRadius:6},
+    {label:'En proceso', data:totPorMes.map((t,i)=>t-entPorMes[i]-devPorMes[i]),backgroundColor:'rgba(240,184,64,.5)',borderRadius:6},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:MU,boxWidth:10}}},scales:{x:{grid:GD,ticks:{color:MU},stacked:true},y:{grid:GD,ticks:{color:MU},stacked:true}}}});
+
+  mc('ch-estados',{type:'doughnut',data:{labels:['Entregadas','Devueltas','En proceso'],datasets:[{data:[ent,dev,trans],backgroundColor:[GR,RE,YL],borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:MU,padding:16,boxWidth:12}}}}});
+
+  const topTrans = Object.entries(g.reduce((acc,r)=>{acc[r._trans]=(acc[r._trans]||0)+1;return acc},{})).sort((a,b)=>b[1]-a[1])[0];
+  const insight = document.getElementById('insight-resumen');
+  if(topTrans && total > 0) {
+    insight.style.display='block';
+    insight.innerHTML = `💡 <strong>${topTrans[0]}</strong> es la transportadora con más guías (${topTrans[1]}). La tasa de entrega es <strong>${(ent/total*100).toFixed(1)}%</strong> sobre ${total} guías en el período.`;
+  }
+}
+
+// ── CIUDADES ───────────────────────────────────────────────────
+let ciudadSort = {col:'total', asc:false};
+let ciudadFilter = '';
+let ciudadData = [];
+let prodCiudadData = [];
+let prodCiudadSort = {col:'guias', asc:false};
+let prodCiudadFilter = '';
+
+function getFiltroFechas(prefijo) {
+  const fi = document.getElementById('fi-'+prefijo)?.value || '';
+  const ff = document.getElementById('ff-'+prefijo)?.value || '';
+  return {fi, ff};
+}
+
+function enRango(fecha, fi, ff) {
+  if(!fecha) return false;
+  if(fi && fecha < fi) return false;
+  if(ff && fecha > ff) return false;
+  return true;
+}
+
+function limpiarFiltrosCiudad() {
+  document.getElementById('fi-ciudad').value = '';
+  document.getElementById('ff-ciudad').value = '';
+  renderCiudades();
+}
+
+function initFechas() {
+  const fechasGuias  = G.guias.map(r=>r._fecha).filter(Boolean).sort();
+  const fechasWallet = G.wallet.map(r=>r._fecha).filter(Boolean).sort();
+  
+  const fi = fechasGuias[0] || '';
+  const ff = fechasGuias[fechasGuias.length-1] || '';
+  const fiW = fechasWallet[0] || fi;
+  const ffW = fechasWallet[fechasWallet.length-1] || ff;
+
+  // Inicializar todos los inputs de fecha
+  const prefijosFechaGuia   = ['resumen','ciudad','trans','prod','det'];
+  const prefijosFechaWallet = ['pyg'];
+
+  prefijosFechaGuia.forEach(p => {
+    const eli = document.getElementById('fi-'+p);
+    const elf = document.getElementById('ff-'+p);
+    if(eli) eli.value = fi;
+    if(elf) elf.value = ff;
+  });
+  prefijosFechaWallet.forEach(p => {
+    const eli = document.getElementById('fi-'+p);
+    const elf = document.getElementById('ff-'+p);
+    if(eli) eli.value = fiW;
+    if(elf) elf.value = ffW;
+  });
+}
+
+function getGuiasFiltradas(prefijo) {
+  const {fi,ff} = getFiltroFechas(prefijo);
+  if(!fi && !ff) return G.guias;
+  return G.guias.filter(r => enRango(r._fecha, fi, ff));
+}
+
+function getWalletFiltrado(prefijo) {
+  const {fi,ff} = getFiltroFechas(prefijo);
+  if(!fi && !ff) return G.wallet;
+  return G.wallet.filter(r => enRango(r._fecha, fi, ff));
+}
+
+function getConceptoFiltrado(prefijo) {
+  const {fi,ff} = getFiltroFechas(prefijo);
+  if(!fi && !ff) return G.concepto;
+  return G.concepto.filter(r => enRango(r._fecha, fi, ff));
+}
+
+function renderCiudades() {
+  const g = getGuiasFiltradas('ciudad');
+  const c = getConceptoFiltrado('ciudad');
+
+  // Mapa ciudad
+  const ciudadMap = {};
+  g.forEach(r => {
+    const ciudad = r._ciudad || 'Sin ciudad';
+    if(!ciudadMap[ciudad]) ciudadMap[ciudad] = {ciudad, total:0, ent:0, dev:0, proc:0};
+    ciudadMap[ciudad].total++;
+    if(r._ent)      ciudadMap[ciudad].ent++;
+    else if(r._dev) ciudadMap[ciudad].dev++;
+    else            ciudadMap[ciudad].proc++;
+  });
+
+  ciudadData = Object.values(ciudadMap).map(d=>({
+    ...d, pct: d.total>0 ? +(d.ent/d.total*100).toFixed(1) : 0
+  }));
+
+  // KPIs
+  const totG = g.length;
+  const totE = g.filter(r=>r._ent).length;
+  const totD = g.filter(r=>r._dev).length;
+  const totP = totG - totE - totD;
+  const peor = ciudadData.filter(c=>c.total>=2).sort((a,b)=>(b.dev/b.total)-(a.dev/a.total))[0];
+
+  document.getElementById('kpi-ciudades').innerHTML = `
+    <div class="kpi blu"><div class="kpi-icon">🏙️</div><div class="kpi-label">Ciudades activas</div><div class="kpi-val blu">${ciudadData.length}</div><div class="kpi-sub">en el período seleccionado</div></div>
+    <div class="kpi grn"><div class="kpi-icon">✅</div><div class="kpi-label">Entregas</div><div class="kpi-val grn">${fmtN(totE)}</div><div class="kpi-sub">${totG>0?(totE/totG*100).toFixed(1):0}% tasa de entrega</div></div>
+    <div class="kpi red"><div class="kpi-icon">↩️</div><div class="kpi-label">Devoluciones</div><div class="kpi-val red">${fmtN(totD)}</div><div class="kpi-sub">${totG>0?(totD/totG*100).toFixed(1):0}% tasa devolución</div></div>
+    <div class="kpi yel"><div class="kpi-icon">⏳</div><div class="kpi-label">En proceso</div><div class="kpi-val yel">${fmtN(totP)}</div><div class="kpi-sub">${peor?'⚠️ Mayor dev: '+peor.ciudad:''}</div></div>
+  `;
+
+  renderTablaCiudades();
+
+  // ── Tabla de productos cruzada con guías ──
+  const guiasEnPeriodo = new Set(g.map(r=>r._guia).filter(Boolean));
+  const artMap = {};
+  c.forEach(r => {
+    if(!r._guia || !r._id || !r._art) return;
+    if(!guiasEnPeriodo.has(r._guia)) return; // solo guías del período
+    const key = r._id;
+    if(!artMap[key]) artMap[key] = {id:r._id, nombre:r._art, cantidad:0, guias:new Set()};
+    artMap[key].cantidad += r._cant;
+    artMap[key].guias.add(r._guia + '|' + r._estado);
+  });
+
+  prodCiudadData = Object.values(artMap).map(d => {
+    const guiasArr = Array.from(d.guias).map(g => {
+      const [guia, estado] = g.split('|');
+      return {guia, estado: estado || ''};
+    });
+    // De-duplicar por guía única
+    const guiasUnicas = {};
+    guiasArr.forEach(g => { if(!guiasUnicas[g.guia]) guiasUnicas[g.guia] = g.estado; });
+    const gl = Object.values(guiasUnicas);
+    const ent  = gl.filter(e=>e.toLowerCase().includes('entregad')).length;
+    const dev  = gl.filter(e=>e.toLowerCase().includes('devolu')).length;
+    const proc = gl.length - ent - dev;
+    return {
+      id: d.id,
+      nombre: d.nombre,
+      cantidad: Math.round(d.cantidad),
+      guias: gl.length,
+      ent, dev, proc,
+      pct: gl.length>0 ? +(ent/gl.length*100).toFixed(1) : 0
+    };
+  });
+
+  renderTablaProdCiudad();
+
+  // Gráficas
+  const top = [...ciudadData].sort((a,b)=>b.total-a.total).slice(0,12);
+  const labels = top.map(c=>c.ciudad.length>14?c.ciudad.substring(0,14)+'…':c.ciudad);
+  mc('ch-ciudades-ent',{type:'bar',data:{labels,datasets:[
+    {label:'Entregas',   data:top.map(c=>c.ent), backgroundColor:GR+'CC',borderRadius:4},
+    {label:'Devoluciones',data:top.map(c=>c.dev),backgroundColor:RE+'CC',borderRadius:4},
+    {label:'En proceso', data:top.map(c=>c.proc),backgroundColor:YL+'88',borderRadius:4},
+  ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:MU,boxWidth:10}}},scales:{x:{grid:GD,ticks:{color:MU},stacked:true},y:{grid:{display:false},ticks:{color:MU,font:{size:10}},stacked:true}}}});
+
+  const top2 = [...ciudadData].filter(c=>c.total>=2).sort((a,b)=>(b.dev/b.total)-(a.dev/a.total)).slice(0,12);
+  mc('ch-ciudades-dev',{type:'bar',data:{labels:top2.map(c=>c.ciudad.length>14?c.ciudad.substring(0,14)+'…':c.ciudad),datasets:[
+    {label:'% Devolución',data:top2.map(c=>+(c.dev/c.total*100).toFixed(1)),backgroundColor:top2.map(c=>{const p=c.dev/c.total*100;return p>=30?RE+'CC':p>=15?YL+'CC':GR+'CC';}),borderRadius:4}
+  ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:GD,ticks:{color:MU,callback:v=>v+'%'},max:100},y:{grid:{display:false},ticks:{color:MU,font:{size:10}}}}}});
+}
+
+function renderTablaCiudades() {
+  let data = [...ciudadData];
+  if(ciudadFilter) data = data.filter(c=>c.ciudad.toLowerCase().includes(ciudadFilter));
+  data.sort((a,b)=>{
+    const va=a[ciudadSort.col], vb=b[ciudadSort.col];
+    return ciudadSort.asc?(va>vb?1:-1):(va<vb?1:-1);
+  });
+  const tbody = document.getElementById('tbody-ciudades');
+  tbody.innerHTML = data.map(c=>`
+    <tr>
+      <td style="font-weight:500">${c.ciudad}</td>
+      <td style="text-align:right;font-weight:600;color:${BL}">${c.total}</td>
+      <td style="text-align:right;color:${GR};font-weight:600">${c.ent}</td>
+      <td style="text-align:right;color:${RE};font-weight:600">${c.dev}</td>
+      <td style="text-align:right;color:${YL}">${c.proc}</td>
+      <td style="text-align:right"><span class="badge ${c.pct>=70?'badge-grn':c.pct>=50?'badge-yel':'badge-red'}">${c.pct}%</span></td>
+    </tr>
+  `).join('');
+  const tot = data.reduce((a,c)=>({total:a.total+c.total,ent:a.ent+c.ent,dev:a.dev+c.dev,proc:a.proc+c.proc}),{total:0,ent:0,dev:0,proc:0});
+  const pctT = tot.total>0?+(tot.ent/tot.total*100).toFixed(1):0;
+  document.getElementById('tfoot-ciudades').innerHTML = `
+    <tr style="border-top:2px solid var(--border);font-weight:700">
+      <td style="color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:.06em">TOTALES — ${data.length} ciudades</td>
+      <td style="text-align:right;color:${BL}">${tot.total}</td>
+      <td style="text-align:right;color:${GR}">${tot.ent}</td>
+      <td style="text-align:right;color:${RE}">${tot.dev}</td>
+      <td style="text-align:right;color:${YL}">${tot.proc}</td>
+      <td style="text-align:right"><span class="badge ${pctT>=70?'badge-grn':pctT>=50?'badge-yel':'badge-red'}">${pctT}%</span></td>
+    </tr>`;
+}
+
+function renderTablaProdCiudad() {
+  let data = [...prodCiudadData];
+  if(prodCiudadFilter) data = data.filter(p=>p.nombre.toLowerCase().includes(prodCiudadFilter)||p.id.toString().includes(prodCiudadFilter));
+  data.sort((a,b)=>{
+    const va=a[prodCiudadSort.col], vb=b[prodCiudadSort.col];
+    return prodCiudadSort.asc?(va>vb?1:-1):(va<vb?1:-1);
+  });
+  const tbody = document.getElementById('tbody-prod-ciudad');
+  tbody.innerHTML = data.map(p=>`
+    <tr>
+      <td style="font-family:monospace;font-size:11px;color:${BL}">${p.id}</td>
+      <td style="font-size:12px">${p.nombre}</td>
+      <td style="text-align:right">${fmtN(p.cantidad)}</td>
+      <td style="text-align:right;font-weight:600;color:${BL}">${p.guias}</td>
+      <td style="text-align:right;color:${GR};font-weight:600">${p.ent}</td>
+      <td style="text-align:right;color:${RE};font-weight:600">${p.dev}</td>
+      <td style="text-align:right;color:${YL}">${p.proc}</td>
+      <td style="text-align:right"><span class="badge ${p.pct>=70?'badge-grn':p.pct>=50?'badge-yel':'badge-red'}">${p.pct}%</span></td>
+    </tr>
+  `).join('');
+  const tot = data.reduce((a,p)=>({cantidad:a.cantidad+p.cantidad,guias:a.guias+p.guias,ent:a.ent+p.ent,dev:a.dev+p.dev,proc:a.proc+p.proc}),{cantidad:0,guias:0,ent:0,dev:0,proc:0});
+  const pctT = tot.guias>0?+(tot.ent/tot.guias*100).toFixed(1):0;
+  document.getElementById('tfoot-prod-ciudad').innerHTML = `
+    <tr style="border-top:2px solid var(--border);font-weight:700">
+      <td colspan="2" style="color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:.06em">TOTALES — ${data.length} productos</td>
+      <td style="text-align:right">${fmtN(tot.cantidad)}</td>
+      <td style="text-align:right;color:${BL}">${tot.guias}</td>
+      <td style="text-align:right;color:${GR}">${tot.ent}</td>
+      <td style="text-align:right;color:${RE}">${tot.dev}</td>
+      <td style="text-align:right;color:${YL}">${tot.proc}</td>
+      <td style="text-align:right"><span class="badge ${pctT>=70?'badge-grn':pctT>=50?'badge-yel':'badge-red'}">${pctT}%</span></td>
+    </tr>`;
+}
+
+function sortCiudad(col) {
+  if(ciudadSort.col===col) ciudadSort.asc=!ciudadSort.asc; else {ciudadSort.col=col;ciudadSort.asc=false;}
+  renderTablaCiudades();
+}
+function filtrarCiudades(v) { ciudadFilter=v.toLowerCase(); renderTablaCiudades(); }
+function sortProdCiudad(col) {
+  if(prodCiudadSort.col===col) prodCiudadSort.asc=!prodCiudadSort.asc; else {prodCiudadSort.col=col;prodCiudadSort.asc=false;}
+  renderTablaProdCiudad();
+}
+function filtrarProdCiudad(v) { prodCiudadFilter=v.toLowerCase(); renderTablaProdCiudad(); }
+
+// ── TRANSPORTADORAS ────────────────────────────────────────────
+function renderTransportadoras() {
+  const g = getGuiasFiltradas('trans');
+  const transMap = {};
+  g.forEach(r => {
+    const t = r._trans || 'Sin transportadora';
+    if(!transMap[t]) transMap[t] = {ent:0,dev:0,total:0};
+    transMap[t].total++;
+    if(r._ent) transMap[t].ent++;
+    if(r._dev) transMap[t].dev++;
+  });
+
+  const lista = Object.entries(transMap).map(([t,d])=>({trans:t,...d,pct:d.total>0?+(d.ent/d.total*100).toFixed(1):0})).sort((a,b)=>b.total-a.total);
+  const colors = [BL, GR, YL, PU, RE];
+
+  document.getElementById('kpi-trans').innerHTML = lista.map((t,i)=>`
+    <div class="kpi" style="border-bottom:2px solid ${colors[i%colors.length]}20"><div class="kpi-icon">🚚</div><div class="kpi-label">${t.trans}</div><div class="kpi-val" style="color:${colors[i%colors.length]};font-size:22px">${fmtN(t.total)} guías</div>
+    <div class="pbar"><div class="pbar-fill" style="width:${t.pct}%;background:${t.pct>=70?GR:t.pct>=50?YL:RE}"></div></div>
+    <div class="kpi-sub">${t.pct}% entrega · ${t.dev} devueltas</div></div>
+  `).join('');
+
+  const labels = lista.map(t=>t.trans.replace('INTER RAPIDÍSIMO','INTER R.').replace('ENVÍA COLVANES','ENVÍA'));
+  mc('ch-trans-bar',{type:'bar',data:{labels,datasets:[{label:'Entregadas',data:lista.map(t=>t.ent),backgroundColor:GR+'CC',borderRadius:6},{label:'Devueltas',data:lista.map(t=>t.dev),backgroundColor:RE+'CC',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:MU}}},scales:{x:{grid:GD,ticks:{color:MU}},y:{grid:GD,ticks:{color:MU}}}}});
+  mc('ch-trans-tasa',{type:'bar',data:{labels,datasets:[{label:'% Entrega',data:lista.map(t=>t.pct),backgroundColor:lista.map(t=>t.pct>=70?GR+'CC':t.pct>=50?YL+'CC':RE+'CC'),borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:GD,ticks:{color:MU}},y:{grid:GD,ticks:{color:MU,callback:v=>v+'%'},max:100}}}});
+}
+
+// ── PYG WALLET ─────────────────────────────────────────────────
+// Estado de tipos excluidos del PYG
+const pygExcluidos = new Set();
+
+function buildPYGTiposCheck(w) {
+  const tipos = [...new Set(w.map(r=>r._tipo).filter(Boolean))].sort();
+  const cont = document.getElementById('pyg-tipos-check');
+  if(!cont || cont.children.length === tipos.length) return;
+
+  cont.innerHTML = tipos.map(t => {
+    const esIngreso = t === 'Recaudo de venta' || t === 'Débito revertido' || t === 'Otros créditos';
+    const color = esIngreso ? GR : RE;
+    const tEsc = t.replace(/\\/g,'\\\\').replace(/`/g,'\\`');
+    return `<label style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:var(--panel);border:1px solid ${color}44;border-radius:20px;cursor:pointer;font-size:11px;white-space:nowrap;user-select:none;" title="${t}">
+      <input type="checkbox" data-tipo="${t.replace(/"/g,'&quot;')}" onchange="togglePYGTipo(this)" style="accent-color:${RE};width:13px;height:13px;">
+      <span style="color:${color}">${t}</span>
+    </label>`;
+  }).join('');
+}
+
+function togglePYGTipo(cb) {
+  const tipo = cb.getAttribute('data-tipo');
+  if(cb.checked) pygExcluidos.add(tipo);
+  else pygExcluidos.delete(tipo);
+  renderPYG();
+}
+
+function renderPYG() {
+  const w = getWalletFiltrado('pyg');
+  const {fi, ff} = getFiltroFechas('pyg');
+  const gastos = G.gastos.filter(r => {
+    if(!fi && !ff) return true;
+    const fd = parseExcelDate(r['Fecha']);
+    return enRango(fd, fi, ff);
+  });
+
+  // Construir checkboxes primera vez
+  buildPYGTiposCheck(G.wallet);
+
+  // Filtrar por tipos excluidos
+  const wFilt = w.filter(r => !pygExcluidos.has(r._tipo));
+
+  const totalIng     = wFilt.filter(r=>r._val>0).reduce((s,r)=>s+r._val,0);
+  const totalEgr     = wFilt.filter(r=>r._val<0).reduce((s,r)=>s+r._val,0);
+  const totalGastos  = gastos.reduce((s,r)=>s+(parseFloat(r['Valor'])||0),0);
+  const neto         = totalIng + totalEgr + totalGastos;
+
+  document.getElementById('kpi-pyg').innerHTML = `
+    <div class="kpi grn"><div class="kpi-icon">📈</div><div class="kpi-label">Total ingresos</div><div class="kpi-val grn">${fmtCOP(totalIng)}</div><div class="kpi-sub">Movimientos positivos</div></div>
+    <div class="kpi red"><div class="kpi-icon">📉</div><div class="kpi-label">Total egresos wallet</div><div class="kpi-val red">${fmtCOP(totalEgr)}</div><div class="kpi-sub">Movimientos negativos</div></div>
+    <div class="kpi yel"><div class="kpi-icon">🧾</div><div class="kpi-label">Gastos adicionales</div><div class="kpi-val yel">${fmtCOP(totalGastos)}</div><div class="kpi-sub">${gastos.length} registros</div></div>
+    <div class="kpi ${neto>=0?'grn':'red'}"><div class="kpi-icon">⚖️</div><div class="kpi-label">Resultado neto</div><div class="kpi-val ${neto>=0?'grn':'red'}">${fmtCOP(neto)}</div><div class="kpi-sub">${totalIng>0?(neto/totalIng*100).toFixed(1):0}% margen</div></div>
+  `;
+
+  // ── TABLAS POR TIPO ──────────────────────────────────────────
+  const ingMap = {}, egrMap = {};
+  wFilt.forEach(r => {
+    if(r._val > 0) {
+      if(!ingMap[r._tipo]) ingMap[r._tipo] = {total:0, count:0};
+      ingMap[r._tipo].total += r._val;
+      ingMap[r._tipo].count++;
+    } else if(r._val < 0) {
+      if(!egrMap[r._tipo]) egrMap[r._tipo] = {total:0, count:0};
+      egrMap[r._tipo].total += r._val;
+      egrMap[r._tipo].count++;
+    }
+  });
+  // Agregar gastos adicionales a egresos
+  gastos.forEach(r => {
+    const v = parseFloat(r['Valor']) || 0;
+    const t = (r['Descripción'] || r['Categoría'] || 'Gasto adicional').toString().trim();
+    if(v !== 0) {
+      if(!egrMap[t]) egrMap[t] = {total:0, count:0};
+      egrMap[t].total += v;
+      egrMap[t].count++;
+    }
+  });
+
+  const ingList = Object.entries(ingMap).sort((a,b)=>b[1].total-a[1].total);
+  const egrList = Object.entries(egrMap).sort((a,b)=>a[1].total-b[1].total);
+
+  // Tabla ingresos
+  document.getElementById('tbody-pyg-ing').innerHTML = ingList.map(([t,d])=>`
+    <tr>
+      <td style="font-size:12px">${t}</td>
+      <td style="text-align:right;color:${GR};font-weight:600">${fmtCOP(d.total)}</td>
+      <td style="text-align:right;color:${MU}">${d.count}</td>
+    </tr>`).join('');
+  const totIng = ingList.reduce((s,[,d])=>s+d.total,0);
+  const totIngC = ingList.reduce((s,[,d])=>s+d.count,0);
+  document.getElementById('tfoot-pyg-ing').innerHTML = `
+    <tr style="border-top:2px solid var(--border);font-weight:700">
+      <td style="color:var(--mu);font-size:11px;text-transform:uppercase">TOTAL</td>
+      <td style="text-align:right;color:${GR}">${fmtCOP(totIng)}</td>
+      <td style="text-align:right;color:${MU}">${totIngC}</td>
+    </tr>`;
+
+  // Tabla egresos
+  document.getElementById('tbody-pyg-egr').innerHTML = egrList.map(([t,d])=>`
+    <tr>
+      <td style="font-size:12px">${t}</td>
+      <td style="text-align:right;color:${RE};font-weight:600">${fmtCOP(d.total)}</td>
+      <td style="text-align:right;color:${MU}">${d.count}</td>
+    </tr>`).join('');
+  const totEgr = egrList.reduce((s,[,d])=>s+d.total,0);
+  const totEgrC = egrList.reduce((s,[,d])=>s+d.count,0);
+  document.getElementById('tfoot-pyg-egr').innerHTML = `
+    <tr style="border-top:2px solid var(--border);font-weight:700">
+      <td style="color:var(--mu);font-size:11px;text-transform:uppercase">TOTAL</td>
+      <td style="text-align:right;color:${RE}">${fmtCOP(totEgr)}</td>
+      <td style="text-align:right;color:${MU}">${totEgrC}</td>
+    </tr>`;
+
+  // Flujo diario recaudo
+  const rec = wFilt.filter(r=>r._tipo.includes('Recaudo'));
+  const recByDate = {};
+  rec.forEach(r=>{ recByDate[r._fecha]=(recByDate[r._fecha]||0)+r._val; });
+  const recDates = Object.keys(recByDate).filter(Boolean).sort();
+  mc('ch-pyg-flujo',{type:'line',data:{labels:recDates.map(d=>d.substring(5)),datasets:[{label:'Recaudo',data:recDates.map(d=>recByDate[d]),borderColor:GR,backgroundColor:'rgba(46,204,141,.1)',fill:true,tension:.4,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:GD,ticks:{color:MU,maxTicksLimit:12}},y:{grid:GD,ticks:{color:MU,callback:v=>fmtCOP(v)}}}}});
+}
+
+// ── PRODUCTOS ──────────────────────────────────────────────────
+let prodData = [], prodSort = {col:'guias',asc:false}, prodFilter = '';
+
+function renderProductos() {
+  const c = getConceptoFiltrado('prod');
+
+  // Agrupar por artículo con guías únicas — incluir ID (Cod. artículo)
+  const artMap = {};
+  c.forEach(r => {
+    const guia   = r._guia;
+    const art    = r._art;
+    const id     = r._id;
+    const estado = r._estado;
+    if(!art || !guia) return;
+    const key = id + '|' + art; // clave compuesta para identificar artículo
+    if(!artMap[key]) artMap[key] = {id, articulo:art, cantidad:0, precio:0, guias:{}};
+    artMap[key].cantidad += r._cant;
+    artMap[key].precio   += r._precio;
+    if(!artMap[key].guias[guia]) artMap[key].guias[guia] = {estado, fecha:r._fecha};
+  });
+
+  prodData = Object.values(artMap).map(d => {
+    const gl  = Object.values(d.guias);
+    const tot = gl.length;
+    const ent = gl.filter(g=>g.estado.includes('entregad')).length;
+    const dev = gl.filter(g=>g.estado.includes('devolu')).length;
+    return {
+      id: d.id,
+      articulo: d.articulo,
+      cantidad: Math.round(d.cantidad),
+      precio:   Math.round(d.precio),
+      guias: tot, entregadas: ent, devueltas: dev,
+      pctEntrega:    tot ? Math.round(ent/tot*100) : 0,
+      pctDevolucion: tot ? Math.round(dev/tot*100) : 0
+    };
+  }).sort((a,b)=>b.guias-a.guias);
+
+  // Totales globales (guías únicas)
+  const guiasGlobales = {};
+  c.forEach(r => { if(r._guia && !guiasGlobales[r._guia]) guiasGlobales[r._guia] = r._estado; });
+  const totG = Object.keys(guiasGlobales).length;
+  const totE = Object.values(guiasGlobales).filter(e=>e.includes('entregad')).length;
+  const totD = Object.values(guiasGlobales).filter(e=>e.includes('devolu')).length;
+
+  document.getElementById('kpi-prod').innerHTML = `
+    <div class="kpi blu"><div class="kpi-icon">📦</div><div class="kpi-label">Total guías únicas</div><div class="kpi-val blu">${fmtN(totG)}</div><div class="kpi-sub">${prodData.length} productos</div></div>
+    <div class="kpi grn"><div class="kpi-icon">✅</div><div class="kpi-label">Entregadas</div><div class="kpi-val grn">${fmtN(totE)}</div><div class="kpi-sub">${totG>0?Math.round(totE/totG*100):0}% tasa de entrega</div></div>
+    <div class="kpi red"><div class="kpi-icon">↩️</div><div class="kpi-label">Devueltas</div><div class="kpi-val red">${fmtN(totD)}</div><div class="kpi-sub">${totG>0?Math.round(totD/totG*100):0}% tasa devolución</div></div>
+    <div class="kpi yel"><div class="kpi-icon">💰</div><div class="kpi-label">Ingresos ventas</div><div class="kpi-val yel">${fmtCOP(prodData.reduce((s,p)=>s+p.precio,0))}</div><div class="kpi-sub">Precio neto total</div></div>
+  `;
+
+  renderTablaProd();
+}
+
+function renderTablaProd() {
+  let data = [...prodData];
+  if(prodFilter) data = data.filter(p=>
+    p.articulo.toLowerCase().includes(prodFilter) ||
+    p.id.toString().includes(prodFilter)
+  );
+  data.sort((a,b)=>prodSort.asc?(a[prodSort.col]>b[prodSort.col]?1:-1):(a[prodSort.col]<b[prodSort.col]?1:-1));
+
+  const tbody = document.getElementById('tbody-prod');
+  tbody.innerHTML = data.map(p=>`
+    <tr>
+      <td style="font-family:monospace;font-size:11px;color:${PU}">${p.id}</td>
+      <td style="font-size:11px">${p.articulo}</td>
+      <td style="text-align:right">${fmtN(p.cantidad)}</td>
+      <td style="text-align:right;font-weight:600;color:${BL}">${p.guias}</td>
+      <td style="text-align:right;color:${GR}">${p.entregadas}</td>
+      <td style="text-align:right;color:${RE}">${p.devueltas}</td>
+      <td style="text-align:right"><span class="badge ${p.pctEntrega>=70?'badge-grn':p.pctEntrega>=50?'badge-yel':'badge-red'}">${p.pctEntrega}%</span></td>
+    </tr>
+  `).join('');
+
+  // Fila de totales
+  const tot = data.reduce((a,p)=>({cantidad:a.cantidad+p.cantidad,guias:a.guias+p.guias,ent:a.ent+p.entregadas,dev:a.dev+p.devueltas}),{cantidad:0,guias:0,ent:0,dev:0});
+  const pctT = tot.guias>0?Math.round(tot.ent/tot.guias*100):0;
+  const tfoot = document.getElementById('tfoot-prod');
+  if(tfoot) tfoot.innerHTML = `
+    <tr style="border-top:2px solid var(--border);font-weight:700">
+      <td colspan="2" style="color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:.06em">TOTALES — ${data.length} productos</td>
+      <td style="text-align:right">${fmtN(tot.cantidad)}</td>
+      <td style="text-align:right;color:${BL}">${tot.guias}</td>
+      <td style="text-align:right;color:${GR}">${tot.ent}</td>
+      <td style="text-align:right;color:${RE}">${tot.dev}</td>
+      <td style="text-align:right"><span class="badge ${pctT>=70?'badge-grn':pctT>=50?'badge-yel':'badge-red'}">${pctT}%</span></td>
+    </tr>`;
+}
+
+function filtrarProd(v) { prodFilter = v.toLowerCase(); renderTablaProd(); }
+function sortProd(col) {
+  if(prodSort.col===col) prodSort.asc=!prodSort.asc;
+  else { prodSort.col=col; prodSort.asc=false; }
+  renderTablaProd();
+}
+
+// ── DETALLE ────────────────────────────────────────────────────
+let detFilter = '';
+
+function renderDetalle() {
+  const g = getGuiasFiltradas('det');
+  renderTablaDetalle(g);
+}
+
+function renderTablaDetalle(g) {
+  let data = [...g];
+  if(detFilter) data = data.filter(r=>
+    r._guia.toLowerCase().includes(detFilter) ||
+    r._ciudad.toLowerCase().includes(detFilter) ||
+    r._trans.toLowerCase().includes(detFilter) ||
+    r._nombres.toLowerCase().includes(detFilter) ||
+    r._ids.toLowerCase().includes(detFilter)
+  );
+  const tbody = document.getElementById('tbody-det');
+  tbody.innerHTML = data.slice(0,300).map(r=>{
+    const badge = r._ent ? 'badge-grn' : r._dev ? 'badge-red' : 'badge-yel';
+    const label = r._ent ? 'Entregada' : r._dev ? 'Devuelta' : r._estado || 'En proceso';
+    const ids    = r._ids    || '—';
+    const nombres = r._articulos.length > 0
+      ? r._articulos.map(a=>`<div style="font-size:10px;color:var(--mu)">${a.nombre} (x${a.cant})</div>`).join('')
+      : '<span style="color:var(--mu);font-size:11px">Sin cruce</span>';
+    return `<tr>
+      <td style="font-family:monospace;font-size:11px;color:${BL}">${r._guia}</td>
+      <td style="font-size:12px">${r._ciudad}</td>
+      <td style="font-size:11px;color:var(--mu)">${r._trans}</td>
+      <td style="font-family:monospace;font-size:11px;color:${PU}">${ids}</td>
+      <td style="max-width:220px">${nombres}</td>
+      <td><span class="badge ${badge}">${label}</span></td>
+      <td style="color:var(--mu);font-size:11px">${r._fecha}</td>
+      <td style="text-align:right;font-size:12px">${r._recaudo>0?fmtCOP(r._recaudo):'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filtrarDet(v) { detFilter = v.toLowerCase(); renderDetalle(); }
+
+// ── NAVEGACIÓN ─────────────────────────────────────────────────
+function showTab(id, btn) {
+  document.querySelectorAll('.content').forEach(c=>c.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── EXPORTAR DATOS JSON ────────────────────────────────────────
+function publicarDatos() {
+  if(!G.guias.length) { alert('No hay datos cargados para publicar.'); return; }
+
+  const btn = document.getElementById('btn-publicar');
+  btn.textContent = '⏳ Generando...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    // Construir payload con todos los datos procesados
+    const payload = {
+      meta: {
+        actualizado: new Date().toISOString(),
+        version: '2.0',
+        meses: getMeses(),
+      },
+      guias: G.guias.map(r => ({
+        guia: r._guia, ciudad: r._ciudad, trans: r._trans,
+        estado: (r['Estado global guía inicial'] || '').toString(),
+        fecha: r._fecha, mes_key: r._mes_key, recaudo: r._recaudo,
+        ent: r._ent, dev: r._dev, articulos: r._articulos || [],
+      })),
+      wallet: G.wallet.map(r => ({
+        tipo: r._tipo, valor: r._val, fecha: r._fecha, mes_key: r._mes_key,
+      })),
+      concepto: G.concepto.map(r => ({
+        guia: r._guia, id: r._id, art: r._art, estado: r._estado,
+        cant: r._cant, precio: r._precio, fecha: r._fecha, mes_key: r._mes_key,
+      })),
+      gastos: G.gastos.map(r => ({
+        fecha: (r['Fecha'] || '').toString(),
+        categoria: (r['Categoría'] || '').toString(),
+        descripcion: (r['Descripción'] || '').toString(),
+        valor: parseFloat(r['Valor']) || 0,
+      })),
+    };
+
+    // Leer el HTML actual y reemplazar el marcador de datos
+    const payloadStr = JSON.stringify(payload);
+    const htmlActual = document.documentElement.outerHTML;
+
+    // Inyectar datos directamente en el HTML — reemplazar el script de carga automática
+    const scriptInject = `<script id="datos-incrustados">
+// Datos incrustados automáticamente el ${new Date().toLocaleString('es-CO')}
+window._DATOS_INCRUSTADOS = ${payloadStr};
+<\/script>`;
+
+    // Insertar antes del cierre de </head>
+    const htmlFinal = htmlActual.replace('</head>', scriptInject + '</head>');
+
+    // Descargar como index.html
+    const blob = new Blob(['<!DOCTYPE html>\n' + htmlFinal], {type: 'text/html;charset=utf-8'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'index.html';
+    a.click();
+    URL.revokeObjectURL(url);
+
+    btn.textContent = '✅ Descargado';
+    setTimeout(() => {
+      btn.textContent = '📤 Publicar datos';
+      btn.disabled = false;
+    }, 3000);
+  }, 100);
+}
+
+// ── CARGA AUTOMÁTICA DE DATOS INCRUSTADOS (modo online GitHub Pages) ──
+window.addEventListener('DOMContentLoaded', () => {
+  // Si hay datos incrustados en el HTML, cargarlos automáticamente
+  if(window._DATOS_INCRUSTADOS) {
+    const payload = window._DATOS_INCRUSTADOS;
+    if(!payload?.guias?.length) return;
+    console.log(`📦 Datos incrustados: ${payload.guias.length} guías — ${payload.meta?.actualizado}`);
+
+    // Reconstruir G desde los datos incrustados
+    G.guias = payload.guias.map(r => ({
+      ...r,
+      _guia: r.guia, _ciudad: r.ciudad, _trans: r.trans,
+      _fecha: r.fecha, _mes_key: r.mes_key, _recaudo: r.recaudo,
+      _ent: r.ent, _dev: r.dev,
+      _articulos: r.articulos || [],
+      _nombres: (r.articulos||[]).map(a=>a.nombre).join(', '),
+      _ids: (r.articulos||[]).map(a=>a.id).join(', '),
+    }));
+        _ids:       (r.articulos||[]).map(a=>a.id).join(', '),
+        'Estado global guía inicial': r.estado,
+      }));
+      G.wallet   = payload.wallet.map(r => ({
+        ...r,
+        _tipo:    r.tipo,
+        _val:     r.valor,
+        _fecha:   r.fecha,
+        _mes_key: r.mes_key,
+      }));
+      G.concepto = payload.concepto.map(r => ({
+        ...r,
+        _guia: r.guia, _id: r.id, _art: r.art, _estado: r.estado,
+        _cant: r.cant, _precio: r.precio, _fecha: r.fecha, _mes_key: r.mes_key,
+      }));
+      G.gastos = payload.gastos || [];
+
+      // Construir mapa guía→artículos
+      G._guiaArtMap = {};
+      G.concepto.forEach(r => {
+        if(!r._guia) return;
+        if(!G._guiaArtMap[r._guia]) G._guiaArtMap[r._guia] = [];
+        G._guiaArtMap[r._guia].push({id:r._id, nombre:r._art, cant:r._cant});
+      });
+
+      // Mostrar dashboard sin botón publicar (ya están los datos)
+      document.getElementById('upload-zone').style.display = 'none';
+      document.getElementById('tabs').style.display = 'flex';
+      document.getElementById('btn-publicar').style.display = 'none';
+      document.getElementById('hdr-status').className = 'status-badge status-ok';
+      document.getElementById('hdr-status').textContent = '✓ En línea';
+      const upd = payload.meta?.actualizado
+        ? new Date(payload.meta.actualizado).toLocaleString('es-CO',{dateStyle:'short',timeStyle:'short'})
+        : '';
+      document.getElementById('hdr-update').textContent = 'Actualizado ' + upd;
+
+      initFechas();
+      buildFilters();
+      renderAll();
+  }
+});
+
+// ── DRAG & DROP ────────────────────────────────────────────────
+const uz = document.getElementById('upload-zone');
+uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('drag-over'); });
+uz.addEventListener('dragleave', () => uz.classList.remove('drag-over'));
+uz.addEventListener('drop', e => {
+  e.preventDefault();
+  uz.classList.remove('drag-over');
+  const files = Array.from(e.dataTransfer.files).filter(f=>f.name.endsWith('.xlsx'));
+  files.forEach(file => {
+    const name = file.name.toUpperCase();
+    let tipo = null;
+    if(name.includes('GUIA')) tipo = 'guias';
+    else if(name.includes('WALLET') || name.includes('MOVIMIENTO')) tipo = 'wallet';
+    else if(name.includes('CONCEPTO') || name.includes('REPORTE')) tipo = 'concepto';
+    else if(name.includes('GASTO')) tipo = 'gastos';
+    if(!tipo) return;
+    const inp = document.getElementById('inp-'+tipo);
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    inp.files = dt.files;
+    handleFile(inp, tipo);
+  });
+});
+
+// ── PUBLICAR DATOS ─────────────────────────────────────────────
+function publicarDatos() {
+  const btn = document.getElementById('btn-publicar');
+  btn.textContent = '⏳ Generando...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    try {
+      // Serializar todos los datos procesados
+      const datosExport = {
+        guias:     G.guias,
+        wallet:    G.wallet,
+        concepto:  G.concepto,
+        gastos:    G.gastos,
+        timestamp: new Date().toISOString()
+      };
+
+      const datosJSON = JSON.stringify(datosExport);
+
+      // Leer el HTML actual de la página
+      const htmlActual = document.documentElement.outerHTML;
+
+      // Inyectar los datos como script al inicio del head
+      const scriptInject = `<script id="datos-publicados">window._DATOS_PUBLICADOS=${datosJSON};<\/script>`;
+      const htmlConDatos = htmlActual.replace('<head>', '<head>\n' + scriptInject);
+
+      // Descargar como index.html
+      const blob = new Blob([htmlConDatos], {type: 'text/html;charset=utf-8'});
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'index.html';
+      a.click();
+      URL.revokeObjectURL(url);
+
+      btn.textContent = '✅ ¡Listo! Sube el index.html a GitHub';
+      setTimeout(() => { btn.textContent = '📤 Publicar datos'; btn.disabled = false; }, 4000);
+
+    } catch(e) {
+      btn.textContent = '❌ Error';
+      btn.disabled = false;
+    }
+  }, 100);
+}
+
+// Al cargar la página verificar si hay datos incrustados
+window.addEventListener('DOMContentLoaded', () => {
+  if(window._DATOS_PUBLICADOS) {
+    const d = window._DATOS_PUBLICADOS;
+
+    // Si la URL es local (file://) mostrar opción de actualizar en lugar de cargar datos
+    const esLocal = window.location.protocol === 'file:';
+
+    G.guias    = d.guias    || [];
+    G.wallet   = d.wallet   || [];
+    G.concepto = d.concepto || [];
+    G.gastos   = d.gastos   || [];
+    G.loaded.guias    = G.guias.length > 0;
+    G.loaded.wallet   = G.wallet.length > 0;
+    G.loaded.concepto = G.concepto.length > 0;
+    G.loaded.gastos   = true;
+
+    if(G.loaded.guias && G.loaded.wallet && G.loaded.concepto) {
+
+      // Si es local — mostrar zona de carga para que puedas actualizar
+      if(esLocal) {
+        // No hacer nada — dejar que cargue normalmente
+        G.guias=[]; G.wallet=[]; G.concepto=[]; G.gastos=[];
+        G.loaded={guias:false,wallet:false,concepto:false,gastos:false};
+        return;
+      }
+
+      // Si es en línea (GitHub Pages) — mostrar datos directamente
+      document.getElementById('upload-zone').style.display = 'none';
+      document.getElementById('tabs').style.display = 'flex';
+      document.getElementById('hdr-status').className = 'status-badge status-ok';
+      const fecha = new Date(d.timestamp);
+      document.getElementById('hdr-status').textContent = '✓ Datos cargados';
+      document.getElementById('hdr-update').textContent =
+        'Actualizado ' + fecha.toLocaleDateString('es-CO') + ' ' +
+        fecha.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+      document.getElementById('btn-publicar').style.display = 'none';
+      procesarDatos();
+    }
+  }
+});
+</script>
+
+<script>
+(function() {
+  // Solo activar si hay datos.json disponible (GitHub Pages)
+  if (window.location.protocol === 'file:') return;
+  
+  fetch('./datos.json')
+    .then(function(r) { return r.json(); })
+    .then(function(payload) {
+      // Esperar a que el DOM y los scripts carguen
+      function activar() {
+        if (typeof G === 'undefined' || typeof procesarDatos === 'undefined') {
+          setTimeout(activar, 200);
+          return;
+        }
+        // Cargar datos en G
+        G.guias    = payload.guias    || [];
+        G.wallet   = payload.wallet   || [];
+        G.concepto = payload.concepto || [];
+        G.gastos   = payload.gastos   || [];
+        G.loaded.guias    = G.guias.length    > 0;
+        G.loaded.wallet   = G.wallet.length   > 0;
+        G.loaded.concepto = G.concepto.length > 0;
+        G.loaded.gastos   = true;
+        // Mostrar dashboard
+        document.getElementById('upload-zone').style.display = 'none';
+        document.getElementById('tabs').style.display = 'flex';
+        document.getElementById('hdr-status').className = 'status-badge status-ok';
+        document.getElementById('hdr-status').textContent = '\u2713 Datos cargados';
+        var f = new Date(payload.timestamp);
+        document.getElementById('hdr-update').textContent =
+          'Actualizado ' + f.toLocaleDateString('es-CO') + ' ' +
+          f.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'});
+        document.getElementById('btn-publicar').style.display = 'none';
+        procesarDatos();
+      }
+      activar();
+    })
+    .catch(function(e) { console.log('datos.json no disponible:', e.message); });
+})();
+</script>
+
+</body>
+</html>
