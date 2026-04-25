@@ -138,6 +138,18 @@ tr:hover td{background:rgba(79,142,247,.03);}
   .upload-files{grid-template-columns:repeat(2,1fr);}
 }
 </style>
+
+<script>
+// Cargar datos desde datos.json (GitHub Pages)
+if (window.location.protocol !== 'file:') {
+  fetch('datos.json')
+    .then(r => r.json())
+    .then(d => {
+      window._DATOS_PUBLICADOS = d;
+    })
+    .catch(e => console.log('Sin datos.json:', e));
+}
+</script>
 </head>
 <body>
 
