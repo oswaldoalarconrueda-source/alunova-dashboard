@@ -1262,172 +1262,24 @@ window._DATOS_INCRUSTADOS = ${payloadStr};
 window.addEventListener('DOMContentLoaded', () => {
   // Si hay datos incrustados en el HTML, cargarlos automáticamente
   if(window._DATOS_INCRUSTADOS) {
-    const payload = window._DATOS_INCRUSTADOS;
-    if(!payload?.guias?.length) return;
-    console.log(`📦 Datos incrustados: ${payload.guias.length} guías — ${payload.meta?.actualizado}`);
-
-    // Reconstruir G desde los datos incrustados
-    G.guias = payload.guias.map(r => ({
-      ...r,
-      _guia: r.guia, _ciudad: r.ciudad, _trans: r.trans,
-      _fecha: r.fecha, _mes_key: r.mes_key, _recaudo: r.recaudo,
-      _ent: r.ent, _dev: r.dev,
-      _articulos: r.articulos || [],
-      _nombres: (r.articulos||[]).map(a=>a.nombre).join(', '),
-      _ids: (r.articulos||[]).map(a=>a.id).join(', '),
-    }));
-        _ids:       (r.articulos||[]).map(a=>a.id).join(', '),
-        'Estado global guía inicial': r.estado,
-      }));
-      G.wallet   = payload.wallet.map(r => ({
-        ...r,
-        _tipo:    r.tipo,
-        _val:     r.valor,
-        _fecha:   r.fecha,
-        _mes_key: r.mes_key,
-      }));
-      G.concepto = payload.concepto.map(r => ({
-        ...r,
-        _guia: r.guia, _id: r.id, _art: r.art, _estado: r.estado,
-        _cant: r.cant, _precio: r.precio, _fecha: r.fecha, _mes_key: r.mes_key,
-      }));
-      G.gastos = payload.gastos || [];
-
-      // Construir mapa guía→artículos
-      G._guiaArtMap = {};
-      G.concepto.forEach(r => {
-        if(!r._guia) return;
-        if(!G._guiaArtMap[r._guia]) G._guiaArtMap[r._guia] = [];
-        G._guiaArtMap[r._guia].push({id:r._id, nombre:r._art, cant:r._cant});
-      });
-
-      // Mostrar dashboard sin botón publicar (ya están los datos)
-      document.getElementById('upload-zone').style.display = 'none';
-      document.getElementById('tabs').style.display = 'flex';
-      document.getElementById('btn-publicar').style.display = 'none';
-      document.getElementById('hdr-status').className = 'status-badge status-ok';
-      document.getElementById('hdr-status').textContent = '✓ En línea';
-      const upd = payload.meta?.actualizado
-        ? new Date(payload.meta.actualizado).toLocaleString('es-CO',{dateStyle:'short',timeStyle:'short'})
-        : '';
-      document.getElementById('hdr-update').textContent = 'Actualizado ' + upd;
-
-      initFechas();
-      buildFilters();
-      renderAll();
-  }
-});
-
-// ── DRAG & DROP ────────────────────────────────────────────────
-const uz = document.getElementById('upload-zone');
-uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('drag-over'); });
-uz.addEventListener('dragleave', () => uz.classList.remove('drag-over'));
-uz.addEventListener('drop', e => {
-  e.preventDefault();
-  uz.classList.remove('drag-over');
-  const files = Array.from(e.dataTransfer.files).filter(f=>f.name.endsWith('.xlsx'));
-  files.forEach(file => {
-    const name = file.name.toUpperCase();
-    let tipo = null;
-    if(name.includes('GUIA')) tipo = 'guias';
-    else if(name.includes('WALLET') || name.includes('MOVIMIENTO')) tipo = 'wallet';
-    else if(name.includes('CONCEPTO') || name.includes('REPORTE')) tipo = 'concepto';
-    else if(name.includes('GASTO')) tipo = 'gastos';
-    if(!tipo) return;
-    const inp = document.getElementById('inp-'+tipo);
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    inp.files = dt.files;
-    handleFile(inp, tipo);
-  });
-});
-
-// ── PUBLICAR DATOS ─────────────────────────────────────────────
-function publicarDatos() {
-  const btn = document.getElementById('btn-publicar');
-  btn.textContent = '⏳ Generando...';
-  btn.disabled = true;
-
-  setTimeout(() => {
-    try {
-      // Serializar todos los datos procesados
-      const datosExport = {
-        guias:     G.guias,
-        wallet:    G.wallet,
-        concepto:  G.concepto,
-        gastos:    G.gastos,
-        timestamp: new Date().toISOString()
-      };
-
-      const datosJSON = JSON.stringify(datosExport);
-
-      // Leer el HTML actual de la página
-      const htmlActual = document.documentElement.outerHTML;
-
-      // Inyectar los datos como script al inicio del head
-      const scriptInject = `<script id="datos-publicados">window._DATOS_PUBLICADOS=${datosJSON};<\/script>`;
-      const htmlConDatos = htmlActual.replace('<head>', '<head>\n' + scriptInject);
-
-      // Descargar como index.html
-      const blob = new Blob([htmlConDatos], {type: 'text/html;charset=utf-8'});
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = 'index.html';
-      a.click();
-      URL.revokeObjectURL(url);
-
-      btn.textContent = '✅ ¡Listo! Sube el index.html a GitHub';
-      setTimeout(() => { btn.textContent = '📤 Publicar datos'; btn.disabled = false; }, 4000);
-
-    } catch(e) {
-      btn.textContent = '❌ Error';
-      btn.disabled = false;
-    }
-  }, 100);
-}
-
-// Al cargar la página verificar si hay datos incrustados
-window.addEventListener('DOMContentLoaded', () => {
-  if(window._DATOS_PUBLICADOS) {
-    const d = window._DATOS_PUBLICADOS;
-
-    // Si la URL es local (file://) mostrar opción de actualizar en lugar de cargar datos
-    const esLocal = window.location.protocol === 'file:';
-
-    G.guias    = d.guias    || [];
-    G.wallet   = d.wallet   || [];
-    G.concepto = d.concepto || [];
-    G.gastos   = d.gastos   || [];
-    G.loaded.guias    = G.guias.length > 0;
-    G.loaded.wallet   = G.wallet.length > 0;
-    G.loaded.concepto = G.concepto.length > 0;
-    G.loaded.gastos   = true;
-
-    if(G.loaded.guias && G.loaded.wallet && G.loaded.concepto) {
-
-      // Si es local — mostrar zona de carga para que puedas actualizar
-      if(esLocal) {
-        // No hacer nada — dejar que cargue normalmente
-        G.guias=[]; G.wallet=[]; G.concepto=[]; G.gastos=[];
-        G.loaded={guias:false,wallet:false,concepto:false,gastos:false};
-        return;
-      }
-
-      // Si es en línea (GitHub Pages) — mostrar datos directamente
-      document.getElementById('upload-zone').style.display = 'none';
-      document.getElementById('tabs').style.display = 'flex';
-      document.getElementById('hdr-status').className = 'status-badge status-ok';
-      const fecha = new Date(d.timestamp);
-      document.getElementById('hdr-status').textContent = '✓ Datos cargados';
-      document.getElementById('hdr-update').textContent =
-        'Actualizado ' + fecha.toLocaleDateString('es-CO') + ' ' +
-        fecha.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
-      document.getElementById('btn-publicar').style.display = 'none';
+<script>
+(function(){
+  if(location.protocol==='file:') return;
+  fetch('datos.json').then(r=>r.json()).then(function(d){
+    function run(){
+      if(typeof G==='undefined'||typeof procesarDatos==='undefined'){setTimeout(run,100);return;}
+      G.guias=d.guias||[];G.wallet=d.wallet||[];G.concepto=d.concepto||[];G.gastos=d.gastos||[];
+      G.loaded={guias:true,wallet:true,concepto:true,gastos:true};
+      document.getElementById('upload-zone').style.display='none';
+      document.getElementById('tabs').style.display='flex';
+      document.getElementById('hdr-status').className='status-badge status-ok';
+      document.getElementById('hdr-status').textContent='\u2713 Datos cargados';
+      document.getElementById('hdr-update').textContent='Feb - Abr 2026';
       procesarDatos();
     }
-  }
-});
+    run();
+  }).catch(function(e){console.log('datos.json:',e);});
+})();
 </script>
 </body>
 </html>
